@@ -51,7 +51,7 @@ int Rsl400UdpNode::open_udp_socket(const std::string& addr, int port, struct add
     return f_socket;
 }
 
-void Rsl400UdpNode::publishScanDatagram() {
+void Rsl400UdpNode::publish_scan() {
     recv(_receive_buffer, BUFFER_LEN);
 
     RSL400::PUdpTelegramType udpTelegramType = (RSL400::PUdpTelegramType)_receive_buffer;
@@ -113,7 +113,7 @@ int Rsl400UdpNode::run()
     while (ros::ok())
     {
         clock_rate.sleep();
-        publishScanDatagram();
+        publish_scan();
         ros::spinOnce();
     }
     return 0;

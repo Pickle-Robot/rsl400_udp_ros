@@ -34,5 +34,5 @@ private:
     int open_udp_socket(const std::string& addr, int port, struct addrinfo *addrinfo);
     int recv(char *msg, size_t max_size);
     int timed_recv(char *msg, size_t max_size, int max_wait_ms);
-    void publishScanDatagram();
+    void publish_scan();
 };
