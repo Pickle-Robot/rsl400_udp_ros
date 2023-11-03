@@ -3,7 +3,7 @@
 Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle* nodehandle) :
     nh(*nodehandle)
 {
-    ros::param::param<int>("~address", _address, "0.0.0.0");
+    ros::param::param<std::string>("~address", _address, "0.0.0.0");
     ros::param::param<int>("~port", _port, 9999);
     ros::param::param<double>("~poll_rate", _poll_rate, 100.0);
     ros::param::param<std::string>("~frame_id", _frame_id, "laser");
@@ -14,7 +14,7 @@ Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle* nodehandle) :
     _scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 50);
     _diagnostics_pub = nh.advertise<diagnostic_msgs::DiagnosticStatus>("rsl400_diagnostics", 50);
 
-    ROS_INFO("Port: %d", _port);
+    _socket = 0;
 }
 
 Rsl400UdpNode::~Rsl400UdpNode()
@@ -215,7 +215,19 @@ int Rsl400UdpNode::run()
 {
     ros::Rate clock_rate(_poll_rate);  // Hz
     struct addrinfo info;
-    _socket = open_udp_socket(_address, _port, &info);
+    while (_socket == 0) {
+        try
+        {
+            _socket = open_udp_socket(_address, _port, &info);
+        }
+        catch (const std::exception& e)
+        {
+            ROS_ERROR("Failed to connect to device: %s", e.what());
+            ros::spinOnce();
+            ros::Duration(1.0).sleep();
+            continue;
+        }
+    }
     while (ros::ok())
     {
         clock_rate.sleep();
