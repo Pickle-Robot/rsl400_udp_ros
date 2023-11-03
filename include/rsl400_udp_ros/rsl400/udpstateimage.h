@@ -88,6 +88,21 @@ namespace RSL400 {
     }
     UdpBeamPacket, *PUdpBeamPacket;
 
+    // Beam + Strength
+    typedef struct tagBeamStrength
+    {
+        WORD Distance;        // distance
+        WORD Strength;        // strength
+    }
+    BeamStrength, *PBeamStrength;
+
+    // UdpBeamStrengthPacket
+    typedef struct tagUdpBeamStrengthPacket : UdpTelegramType
+    {
+        BeamStrength Beams[1];
+    }
+    UdpBeamStrengthPacket, *PUdpBeamStrengthPacket;
+
     /// <summary>
     /// Gets the beam count.
     /// </summary>

@@ -14,8 +14,8 @@
 
 #pragma pack(1)
 
-typedef unsigned long DWORD;
-typedef unsigned short WORD;
+typedef uint32_t DWORD;
+typedef uint16_t WORD;
 
 namespace RSL400 {
     // Protection Function

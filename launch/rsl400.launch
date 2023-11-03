@@ -1,0 +1,3 @@
+<launch>
+    <node name="leuze_lidar" pkg="rsl400_udp_ros" type="rsl400_udp_ros" output="screen"/>
+</launch>
