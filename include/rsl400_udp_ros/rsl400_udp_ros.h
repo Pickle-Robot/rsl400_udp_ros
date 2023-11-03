@@ -35,6 +35,7 @@ private:
 
     const int BUFFER_LEN = 2048000;
 
+    std::string _address;
     int _port;
     struct addrinfo *_addrinfo;
     int _socket;
@@ -61,6 +62,5 @@ private:
 
     int open_udp_socket(const std::string& addr, int port, struct addrinfo *addrinfo);
     int recv(char *msg, size_t max_size);
-    int timed_recv(char *msg, size_t max_size, int max_wait_ms);
     void publish_scan();
 };

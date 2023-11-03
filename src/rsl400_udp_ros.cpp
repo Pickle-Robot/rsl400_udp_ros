@@ -3,6 +3,7 @@
 Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle* nodehandle) :
     nh(*nodehandle)
 {
+    ros::param::param<int>("~address", _address, "0.0.0.0");
     ros::param::param<int>("~port", _port, 9999);
     ros::param::param<double>("~poll_rate", _poll_rate, 100.0);
     ros::param::param<std::string>("~frame_id", _frame_id, "laser");
@@ -70,6 +71,12 @@ void Rsl400UdpNode::publish_scan() {
     if (udpTelegramType->Id == 1) {
         RSL400::PUdpExtStateImageType1 udpExtStateImageType1 = (RSL400::PUdpExtStateImageType1)_receive_buffer;
 
+        int expected_length = udpExtStateImageType1->H1.TotalSize;
+        if (expected_length != recv_length) {
+            ROS_WARN("Received packet size does not match header size");
+            return;
+        }
+
         diagnostic_msgs::DiagnosticStatus diagnostics;
 
         if (udpExtStateImageType1->StateImage1.IsOssdB ||
@@ -134,7 +141,22 @@ void Rsl400UdpNode::publish_scan() {
             ROS_DEBUG("Status message not received. Not publishing scan with intensities");
             return;
         }
+
         RSL400::PUdpBeamStrengthPacket t3 = (RSL400::PUdpBeamStrengthPacket)_receive_buffer;
+
+        int expected_length = t3->H1.TotalSize;
+        if (expected_length != recv_length) {
+            ROS_WARN("Received packet size does not match header size");
+            return;
+        }
+
+        int num_beams = (expected_length - sizeof(RSL400::UdpTelegramType)) / sizeof(RSL400::BeamStrength);
+        if (num_beams != _beam_count) {
+            ROS_WARN("Received packet size does not match beam count");
+            // TODO support reconstruction of packets using blocks
+            return;
+        }
+
         for (int index = 0; index < _beam_count; index++) {
             _ranges[index] = (float)(t3->Beams[index].Distance) * 0.001;
             _intensities[index] = (float)(t3->Beams[index].Strength);
@@ -146,7 +168,20 @@ void Rsl400UdpNode::publish_scan() {
             ROS_DEBUG("Status message not received. Not publishing scan");
             return;
         }
+
         RSL400::PUdpBeamPacket t6 = (RSL400::PUdpBeamPacket)_receive_buffer;
+
+        int expected_length = t6->H1.TotalSize;
+        if (expected_length != recv_length) {
+            ROS_WARN("Received packet size does not match header size");
+            // TODO support reconstruction of packets using blocks
+            return;
+        }
+        int num_beams = (expected_length - sizeof(RSL400::UdpTelegramType)) / sizeof(RSL400::Beam);
+        if (num_beams != _beam_count) {
+            ROS_WARN("Received packet size does not match beam count");
+            return;
+        }
 
         for (int index = 0; index < _beam_count; index++) {
             _ranges[index] = (float)(t6->Beams[index].Distance) * 0.001;
@@ -176,36 +211,11 @@ int Rsl400UdpNode::recv(char *msg, size_t max_size)
     return ::recv(_socket, msg, max_size, 0);
 }
 
-int Rsl400UdpNode::timed_recv(char *msg, size_t max_size, int max_wait_ms)
-{
-    fd_set s;
-    FD_ZERO(&s);
-    FD_SET(_socket, &s);
-    struct timeval timeout;
-    timeout.tv_sec = max_wait_ms / 1000;
-    timeout.tv_usec = (max_wait_ms % 1000) * 1000;
-    int retval = select(_socket + 1, &s, &s, &s, &timeout);
-    if(retval == -1)
-    {
-        // select() set errno accordingly
-        return -1;
-    }
-    if(retval > 0)
-    {
-        // our socket has data
-        return ::recv(_socket, msg, max_size, 0);
-    }
-
-    // our socket has no data
-    errno = EAGAIN;
-    return -1;
-}
-
 int Rsl400UdpNode::run()
 {
     ros::Rate clock_rate(_poll_rate);  // Hz
     struct addrinfo info;
-    _socket = open_udp_socket("0.0.0.0", _port, &info);
+    _socket = open_udp_socket(_address, _port, &info);
     while (ros::ok())
     {
         clock_rate.sleep();
