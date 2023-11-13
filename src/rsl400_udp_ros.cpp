@@ -68,7 +68,8 @@ void Rsl400UdpNode::publish_scan() {
 
     bool publish_laser = false;
 
-    if (udpTelegramType->Id == 1) {
+    if (udpTelegramType->Id == 1)
+    {
         RSL400::PUdpExtStateImageType1 udpExtStateImageType1 = (RSL400::PUdpExtStateImageType1)_receive_buffer;
 
         int expected_length = udpExtStateImageType1->H1.TotalSize;
@@ -136,7 +137,8 @@ void Rsl400UdpNode::publish_scan() {
         _stop_angle = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Stop);
         _angle_increment = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Resolution);
     }
-    else if (udpTelegramType->Id == 3) {
+    else if (udpTelegramType->Id == 3)
+    {
         if (_beam_count == 0) {
             ROS_DEBUG("Status message not received. Not publishing scan with intensities");
             return;
@@ -150,20 +152,21 @@ void Rsl400UdpNode::publish_scan() {
             return;
         }
 
-        int num_beams = (expected_length - sizeof(RSL400::UdpTelegramType)) / sizeof(RSL400::BeamStrength);
-        if (num_beams != _beam_count) {
-            ROS_WARN("Received packet size does not match beam count");
-            // TODO support reconstruction of packets using blocks
+        int block = (int)t3->H1.BlockNo;
+        int num_beams, block_start;
+        if (!get_assignment_range(block, expected_length, sizeof(RSL400::BeamStrength), num_beams, block_start)) {
             return;
         }
 
-        for (int index = 0; index < _beam_count; index++) {
-            _ranges[index] = (float)(t3->Beams[index].Distance) * 0.001;
-            _intensities[index] = (float)(t3->Beams[index].Strength);
+        for (int index = 0; index < num_beams; index++) {
+            _ranges[index + block_start] = (float)(t3->Beams[index].Distance) * 0.001;
+            _intensities[index + block_start] = (float)(t3->Beams[index].Strength);
         }
         publish_laser = true;
+        _beam_count = 0;
     }
-    else if (udpTelegramType->Id == 6) {
+    else if (udpTelegramType->Id == 6)
+    {
         if (_beam_count == 0) {
             ROS_DEBUG("Status message not received. Not publishing scan");
             return;
@@ -177,9 +180,10 @@ void Rsl400UdpNode::publish_scan() {
             // TODO support reconstruction of packets using blocks
             return;
         }
-        int num_beams = (expected_length - sizeof(RSL400::UdpTelegramType)) / sizeof(RSL400::Beam);
-        if (num_beams != _beam_count) {
-            ROS_WARN("Received packet size does not match beam count");
+
+        int block = (int)t6->H1.BlockNo;
+        int num_beams, block_start;
+        if (!get_assignment_range(block, expected_length, sizeof(RSL400::Beam), num_beams, block_start)) {
             return;
         }
 
@@ -188,6 +192,7 @@ void Rsl400UdpNode::publish_scan() {
         }
 
         publish_laser = true;
+        _beam_count = 0;
     }
 
     if (publish_laser) {
@@ -203,6 +208,19 @@ void Rsl400UdpNode::publish_scan() {
         scan_msg.range_min = 0.0;
         scan_msg.range_max = 0x10000 * 0.001;
         _scan_pub.publish(scan_msg);
+    }
+}
+
+bool Rsl400UdpNode::get_assignment_range(int block, int expected_length, size_t data_type_size, int &num_beams, int &block_start)
+{
+    block_start = block * 1470;
+    num_beams = (expected_length - sizeof(RSL400::UdpTelegramType)) / data_type_size;
+    if (block_start + num_beams > _beam_count) {
+        ROS_WARN("Received packet size does not match beam count");
+        return false;
+    }
+    else {
+        return true;
     }
 }
 

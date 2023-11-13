@@ -63,4 +63,5 @@ private:
     int open_udp_socket(const std::string& addr, int port, struct addrinfo *addrinfo);
     int recv(char *msg, size_t max_size);
     void publish_scan();
+    bool get_assignment_range(int block, int expected_length, size_t data_type_size, int &num_beams, int &block_start);
 };
