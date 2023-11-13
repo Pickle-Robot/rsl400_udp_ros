@@ -152,7 +152,7 @@ void Rsl400UdpNode::publish_scan() {
             return;
         }
 
-        int block = (int)t3->H1.BlockNo;
+        int block = (int)t3->BlockNo;
         int num_beams, block_start;
         if (!get_assignment_range(block, expected_length, sizeof(RSL400::BeamStrength), num_beams, block_start)) {
             return;
@@ -181,7 +181,7 @@ void Rsl400UdpNode::publish_scan() {
             return;
         }
 
-        int block = (int)t6->H1.BlockNo;
+        int block = (int)t6->BlockNo;
         int num_beams, block_start;
         if (!get_assignment_range(block, expected_length, sizeof(RSL400::Beam), num_beams, block_start)) {
             return;
