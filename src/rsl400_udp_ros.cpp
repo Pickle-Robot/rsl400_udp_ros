@@ -1,31 +1,39 @@
 #include "rsl400_udp_ros/rsl400_udp_ros.h"
 
-Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle* nodehandle) :
-    nh(*nodehandle)
+Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle *nodehandle) : nh(*nodehandle)
 {
     ros::param::param<std::string>("~address", _address, "0.0.0.0");
     ros::param::param<int>("~port", _port, 9999);
     ros::param::param<double>("~poll_rate", _poll_rate, 100.0);
-    ros::param::param<std::string>("~frame_id", _frame_id, "laser");
+    ros::param::param<double>("~socket_timeout", _socket_timeout, 3.0);
+
+    double min_range, max_range;
+    ros::param::param<double>("~min_range", min_range, 0.0);
+    ros::param::param<double>("~max_range", max_range, 0x10000 * 0.001 - 1.0); // no data measurement == 65.536 meters
+
+    std::string frame_id;
+    ros::param::param<std::string>("~frame_id", frame_id, "laser");
 
     _receive_buffer = new char[BUFFER_LEN];
     _prev_scan_time = ros::Time::now();
 
+    _socket = 0;
+
+    _scan_msg.header.frame_id = frame_id;
+    _scan_msg.range_min = min_range;
+    _scan_msg.range_max = max_range;
+
     _scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 50);
     _diagnostics_pub = nh.advertise<diagnostic_msgs::DiagnosticStatus>("rsl400_diagnostics", 50);
-
-    _socket = 0;
 }
 
 Rsl400UdpNode::~Rsl400UdpNode()
 {
-    freeaddrinfo(_addrinfo);
     close(_socket);
     delete[] _receive_buffer;
 }
 
-
-int Rsl400UdpNode::open_udp_socket(const std::string& addr, int port, struct addrinfo *addrinfo)
+int Rsl400UdpNode::open_udp_socket(const std::string &addr, int port, struct addrinfo *addrinfo)
 {
     char decimal_port[16];
     snprintf(decimal_port, sizeof(decimal_port), "%d", port);
@@ -36,193 +44,252 @@ int Rsl400UdpNode::open_udp_socket(const std::string& addr, int port, struct add
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = IPPROTO_UDP;
     int error_code(getaddrinfo(addr.c_str(), decimal_port, &hints, &addrinfo));
-    if(error_code != 0 || addrinfo == NULL)
+    if (error_code != 0 || addrinfo == NULL)
     {
         throw std::runtime_error(("invalid address or port for UDP socket: \"" + addr + ":" + decimal_port + "\"").c_str());
     }
     int f_socket = socket(addrinfo->ai_family, SOCK_DGRAM | SOCK_CLOEXEC, IPPROTO_UDP);
-    if(f_socket == -1)
+    if (f_socket == -1)
     {
         freeaddrinfo(addrinfo);
         throw std::runtime_error(("could not create UDP socket for: \"" + addr + ":" + decimal_port + "\"").c_str());
     }
     error_code = bind(f_socket, addrinfo->ai_addr, addrinfo->ai_addrlen);
-    if(error_code != 0)
+    if (error_code != 0)
     {
         freeaddrinfo(addrinfo);
         close(f_socket);
         throw std::runtime_error(("could not bind UDP socket with: \"" + addr + ":" + decimal_port + "\"").c_str());
     }
+
+    struct timeval timeout;
+    timeout.tv_sec = (int)_socket_timeout;
+    timeout.tv_usec = (int)((_socket_timeout - (int)_socket_timeout) * 1000000);
+
+    if (setsockopt(f_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        throw std::runtime_error("failed to set socket timeout");
+    }
+
     ROS_INFO("Opened UDP socket");
     return f_socket;
 }
 
-void Rsl400UdpNode::publish_scan() {
+void Rsl400UdpNode::publish_scan()
+{
     int recv_length = recv(_receive_buffer, BUFFER_LEN);
-    if (recv_length <= 0) {
+    if (recv_length <= 0)
+    {
         return;
     }
-    ros::Time now = ros::Time::now();
 
     RSL400::PUdpTelegramType udpTelegramType = (RSL400::PUdpTelegramType)_receive_buffer;
 
     bool publish_laser = false;
-
-    if (udpTelegramType->Id == 1)
+    switch (udpTelegramType->Id)
     {
-        RSL400::PUdpExtStateImageType1 udpExtStateImageType1 = (RSL400::PUdpExtStateImageType1)_receive_buffer;
-
-        int total_size = udpExtStateImageType1->H1.TotalSize;
-        if (total_size != recv_length) {
-            ROS_WARN("Received packet size does not match header size");
-            return;
-        }
-
-        diagnostic_msgs::DiagnosticStatus diagnostics;
-
-        if (udpExtStateImageType1->StateImage1.IsOssdB ||
-            udpExtStateImageType1->StateImage1.IsOssdA ||
-            udpExtStateImageType1->StateImage1.IsEStopError ||
-            udpExtStateImageType1->StateImage1.IsFieldPairError ||
-            udpExtStateImageType1->StateImage1.IsEdm ||
-            udpExtStateImageType1->StateImage1.IsScreen ||
-            udpExtStateImageType1->StateImage1.IsAlarm ||
-            udpExtStateImageType1->StateImage1.IsError) {
-            diagnostics.level = diagnostic_msgs::DiagnosticStatus::ERROR;
-        }
-        else {
-            diagnostics.level = diagnostic_msgs::DiagnosticStatus::OK;
-        }
-        diagnostics.name = "rsl400";
-        diagnostics.message = "";
-        diagnostics.hardware_id = "";
-
-        diagnostics.values.push_back(make_entry("StateImage1/ScanNo", udpExtStateImageType1->StateImage1.ScanNo));
-        diagnostics.values.push_back(make_entry("StateImage1/IsOssdB", udpExtStateImageType1->StateImage1.IsOssdB));
-        diagnostics.values.push_back(make_entry("StateImage1/IsOssdA", udpExtStateImageType1->StateImage1.IsOssdA));
-        diagnostics.values.push_back(make_entry("StateImage1/IsEStopError", udpExtStateImageType1->StateImage1.IsEStopError));
-        diagnostics.values.push_back(make_entry("StateImage1/IsFieldPairError", udpExtStateImageType1->StateImage1.IsFieldPairError));
-        diagnostics.values.push_back(make_entry("StateImage1/IsEdm", udpExtStateImageType1->StateImage1.IsEdm));
-        diagnostics.values.push_back(make_entry("StateImage1/IsScreen", udpExtStateImageType1->StateImage1.IsScreen));
-        diagnostics.values.push_back(make_entry("StateImage1/IsAlarm", udpExtStateImageType1->StateImage1.IsAlarm));
-        diagnostics.values.push_back(make_entry("StateImage1/IsError", udpExtStateImageType1->StateImage1.IsError));
-
-        diagnostics.values.push_back(make_entry("BeamDesc/Start", udpExtStateImageType1->BeamDesc.Start));
-        diagnostics.values.push_back(make_entry("BeamDesc/Stop", udpExtStateImageType1->BeamDesc.Stop));
-        diagnostics.values.push_back(make_entry("BeamDesc/Resolution", udpExtStateImageType1->BeamDesc.Resolution));
-
-        _diagnostics_pub.publish(diagnostics);
-
-        int beam_count = RSL400::getBeamCount(&udpExtStateImageType1->BeamDesc);
-        _beam_count = beam_count;
-        _received_bitmask = 0;
-        int scan_count = udpExtStateImageType1->StateImage1.ScanNo;
-        if (_scan_count == 0) {
-            _scan_count = scan_count;
-            _time_increment = 0.0;
-        }
-        else {
-            int delta_count = scan_count - _scan_count;
-            ros::Duration time_delta = now - _prev_scan_time;
-            _time_increment = time_delta.toSec() / (delta_count * _beam_count);
-        }
-
-        _prev_scan_time = now;
-
-        _scan_count = scan_count;
-        if (_ranges.size() < beam_count) {
-            _ranges.resize(beam_count);
-            _intensities.resize(beam_count);
-        }
-        _start_angle = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Start);
-        _stop_angle = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Stop);
-        _angle_increment = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Resolution);
-    }
-    else if (udpTelegramType->Id == 3)
-    {
-        if (_beam_count == 0) {
-            ROS_DEBUG("Status message not received. Not publishing scan with intensities");
-            return;
-        }
-
-        RSL400::PUdpBeamStrengthPacket t3 = (RSL400::PUdpBeamStrengthPacket)_receive_buffer;
-
-        int total_size = t3->H1.TotalSize;
-        int block = (int)t3->BlockNo;
-        int num_beams, block_start, completion_bitmask;
-        
-        if (!get_assignment_range(block, total_size, sizeof(RSL400::BeamStrength), _beam_count, num_beams, block_start, completion_bitmask)) {
-            return;
-        }
-
-        for (int index = 0; index < num_beams; index++) {
-            _ranges[index + block_start] = (float)(t3->Beams[index].Distance) * 0.001;
-            _intensities[index + block_start] = (float)(t3->Beams[index].Strength);
-        }
-        if (completion_bitmask == _received_bitmask) {
-            publish_laser = true;
-            _beam_count = 0;
-        }
-    }
-    else if (udpTelegramType->Id == 6)
-    {
-        if (_beam_count == 0) {
-            ROS_DEBUG("Status message not received. Not publishing scan");
-            return;
-        }
-
-        RSL400::PUdpBeamPacket t6 = (RSL400::PUdpBeamPacket)_receive_buffer;
-
-        int total_size = t6->H1.TotalSize;
-        int block = (int)t6->BlockNo;
-        int num_beams, block_start, completion_bitmask;
-        if (!get_assignment_range(block, total_size, sizeof(RSL400::Beam), _beam_count, num_beams, block_start, completion_bitmask)) {
-            return;
-        }
-
-        for (int index = 0; index < _beam_count; index++) {
-            _ranges[index + block_start] = (float)(t6->Beams[index].Distance) * 0.001;
-        }
-
-        if (completion_bitmask == _received_bitmask) {
-            publish_laser = true;
-            _beam_count = 0;
-        }
+    case LeuzePacketId::BEAM_DESCRIPTION:
+        publish_laser = handle_beam_description(_receive_buffer, recv_length);
+        break;
+    case LeuzePacketId::BEAM_STRENGTH_ID:
+        publish_laser = handle_beam_strength_data(_receive_buffer, recv_length);
+        break;
+    case LeuzePacketId::BEAM_ID:
+        publish_laser = handle_beam_data(_receive_buffer, recv_length);
+        break;
+    default:
+        break;
     }
 
-    if (publish_laser) {
-        sensor_msgs::LaserScan scan_msg;
-        scan_msg.header.frame_id = _frame_id;
-        scan_msg.header.stamp = now;
-        scan_msg.ranges = _ranges;
-        scan_msg.intensities = _intensities;
-        scan_msg.angle_min = _start_angle;
-        scan_msg.angle_max = _stop_angle;
-        scan_msg.angle_increment = _angle_increment;
-        scan_msg.time_increment = _time_increment;
-        scan_msg.range_min = 0.0;
-        scan_msg.range_max = 0x10000 * 0.001;
-        _scan_pub.publish(scan_msg);
+    if (publish_laser)
+    {
+        _scan_pub.publish(_scan_msg);
     }
 }
 
-bool Rsl400UdpNode::get_assignment_range(int block, int total_size, size_t data_type_size, int beam_count, int &num_beams, int &block_start, int &completion_bitmask)
+/**
+ * Computes the starting beam index for a packet and whether the scan is fully received.
+ *
+ * @param block_start Result parameter for the starting beam index for this packet.
+ * @param udpTelegramType Header of the received packet.
+ * @param data_type_size Size of the data type contained in the packet (Beam or BeamStrength).
+ * @return True if the scan is fully received, false otherwise.
+ */
+bool Rsl400UdpNode::get_assignment_range(int *block_start, RSL400::PUdpTelegramType udpTelegramType, size_t data_type_size)
 {
+    // A single scan will be split into multiple packets if it exceeds the LEUZE_PREFERRED_PAYLOAD_LIMIT.
+    // Using block number and _beam_count extracted from a previous description packet, we can determine
+    // where to start assigning beams from this packet.
+
+    // Extract current data packet info
+    int block = udpTelegramType->BlockNo;
+    int total_size = udpTelegramType->H1.TotalSize;
+
+    // A beam == information from a single ray. Can be distance or distance with strength/intensity.
+    // max_beams_per_packet contains how many beams we expect to find in this packet if it's full.
     int max_beams_per_packet = (LEUZE_PREFERRED_PAYLOAD_LIMIT - sizeof(RSL400::UdpTelegramType)) / data_type_size;
-    block_start = block * max_beams_per_packet;
-    num_beams = (total_size - sizeof(RSL400::UdpTelegramType)) / data_type_size;
-    
-    int expected_num_packets = ceil((double)beam_count / max_beams_per_packet);
-    completion_bitmask = (1 << expected_num_packets) - 1;
-    _received_bitmask |= 1 << block;
-    
-    if (expected_num_packets > 1 && block == 0 && num_beams != max_beams_per_packet) {
+    *block_start = block * max_beams_per_packet;
+
+    // Compute the actual number of beams in this packet
+    int num_beams = (total_size - sizeof(RSL400::UdpTelegramType)) / data_type_size;
+
+    // Compute the expected number of packets for this scan
+    int expected_num_packets = ceil((double)_beam_count / max_beams_per_packet);
+
+    // If we expect to receive multiple packets, all packets except the last one should be full.
+    if (expected_num_packets > 1 && block < expected_num_packets - 1 && num_beams != max_beams_per_packet)
+    {
         ROS_WARN("Received packet size does not match beam count");
         return false;
     }
-    else {
-        return true;
+
+    // Given the expected number of packets compute the bitmask for a fully received scan
+    int completion_bitmask = (1 << expected_num_packets) - 1;
+
+    // Update the bitmask with the current packet
+    _received_bitmask |= 1 << block;
+
+    // Return true indicating the scan is complete if the bitmask is complete
+    return completion_bitmask == _received_bitmask;
+}
+
+bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
+{
+    ros::Time now = ros::Time::now();
+
+    RSL400::PUdpExtStateImageType1 udpExtStateImageType1 = (RSL400::PUdpExtStateImageType1)receive_buffer;
+
+    int total_size = udpExtStateImageType1->H1.TotalSize;
+    if (total_size != length)
+    {
+        ROS_WARN("Received packet size does not match header size");
+        return false;
     }
+
+    diagnostic_msgs::DiagnosticStatus diagnostics;
+
+    if (udpExtStateImageType1->StateImage1.IsOssdB ||
+        udpExtStateImageType1->StateImage1.IsOssdA ||
+        udpExtStateImageType1->StateImage1.IsEStopError ||
+        udpExtStateImageType1->StateImage1.IsFieldPairError ||
+        udpExtStateImageType1->StateImage1.IsEdm ||
+        udpExtStateImageType1->StateImage1.IsScreen ||
+        udpExtStateImageType1->StateImage1.IsAlarm ||
+        udpExtStateImageType1->StateImage1.IsError)
+    {
+        diagnostics.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+    }
+    else
+    {
+        diagnostics.level = diagnostic_msgs::DiagnosticStatus::OK;
+    }
+    diagnostics.name = "rsl400";
+    diagnostics.message = "";
+    diagnostics.hardware_id = "";
+
+    diagnostics.values.push_back(make_entry("StateImage1/ScanNo", udpExtStateImageType1->StateImage1.ScanNo));
+    diagnostics.values.push_back(make_entry("StateImage1/IsOssdB", udpExtStateImageType1->StateImage1.IsOssdB));
+    diagnostics.values.push_back(make_entry("StateImage1/IsOssdA", udpExtStateImageType1->StateImage1.IsOssdA));
+    diagnostics.values.push_back(make_entry("StateImage1/IsEStopError", udpExtStateImageType1->StateImage1.IsEStopError));
+    diagnostics.values.push_back(make_entry("StateImage1/IsFieldPairError", udpExtStateImageType1->StateImage1.IsFieldPairError));
+    diagnostics.values.push_back(make_entry("StateImage1/IsEdm", udpExtStateImageType1->StateImage1.IsEdm));
+    diagnostics.values.push_back(make_entry("StateImage1/IsScreen", udpExtStateImageType1->StateImage1.IsScreen));
+    diagnostics.values.push_back(make_entry("StateImage1/IsAlarm", udpExtStateImageType1->StateImage1.IsAlarm));
+    diagnostics.values.push_back(make_entry("StateImage1/IsError", udpExtStateImageType1->StateImage1.IsError));
+
+    diagnostics.values.push_back(make_entry("BeamDesc/Start", udpExtStateImageType1->BeamDesc.Start));
+    diagnostics.values.push_back(make_entry("BeamDesc/Stop", udpExtStateImageType1->BeamDesc.Stop));
+    diagnostics.values.push_back(make_entry("BeamDesc/Resolution", udpExtStateImageType1->BeamDesc.Resolution));
+
+    _diagnostics_pub.publish(diagnostics);
+
+    int beam_count = RSL400::getBeamCount(&udpExtStateImageType1->BeamDesc);
+    _beam_count = beam_count;
+    _received_bitmask = 0;
+    int scan_count = udpExtStateImageType1->StateImage1.ScanNo;
+    if (_scan_count == 0)
+    {
+        _scan_count = scan_count;
+        _scan_msg.time_increment = 0.0;
+    }
+    else
+    {
+        int delta_count = scan_count - _scan_count;
+        ros::Duration time_delta = now - _prev_scan_time;
+        _scan_msg.time_increment = time_delta.toSec() / (delta_count * _beam_count);
+    }
+
+    _prev_scan_time = now;
+
+    _scan_count = scan_count;
+    if (_scan_msg.ranges.size() != beam_count)
+    {
+        _scan_msg.ranges.resize(beam_count);
+        _scan_msg.intensities.resize(beam_count);
+    }
+    double angle_start = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Start);
+    double angle_stop = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Stop);
+    double angle_delta = angle_stop - angle_start;
+    _scan_msg.angle_min = -angle_delta / 2.0;
+    _scan_msg.angle_max = angle_delta / 2.0;
+    _scan_msg.angle_increment = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Resolution);
+    _scan_msg.header.stamp = now;
+
+    return false;
+}
+
+bool Rsl400UdpNode::handle_beam_strength_data(char *receive_buffer, int length)
+{
+    if (_beam_count == 0)
+    {
+        ROS_DEBUG("Status message not received. Not publishing scan with intensities");
+        return false;
+    }
+
+    RSL400::PUdpBeamStrengthPacket t3 = (RSL400::PUdpBeamStrengthPacket)_receive_buffer;
+    RSL400::PUdpTelegramType udpTelegramType = (RSL400::PUdpTelegramType)_receive_buffer;
+
+    int block_start;
+    bool publish_laser = get_assignment_range(&block_start, udpTelegramType, sizeof(RSL400::BeamStrength));
+
+    for (int index = 0; index < _beam_count; index++)
+    {
+        int block_index = index + block_start;
+        _scan_msg.ranges[block_index] = (float)(t3->Beams[index].Distance) * 0.001;
+        _scan_msg.intensities[block_index] = (float)(t3->Beams[index].Strength);
+    }
+
+    if (publish_laser)
+    {
+        _beam_count = 0;
+    }
+    return publish_laser;
+}
+
+bool Rsl400UdpNode::handle_beam_data(char *receive_buffer, int length)
+{
+    if (_beam_count == 0)
+    {
+        ROS_DEBUG("Status message not received. Not publishing scan");
+        return false;
+    }
+
+    RSL400::PUdpBeamPacket t6 = (RSL400::PUdpBeamPacket)_receive_buffer;
+    RSL400::PUdpTelegramType udpTelegramType = (RSL400::PUdpTelegramType)_receive_buffer;
+
+    int block_start;
+    bool publish_laser = get_assignment_range(&block_start, udpTelegramType, sizeof(RSL400::Beam));
+
+    for (int index = 0; index < _beam_count; index++)
+    {
+        _scan_msg.ranges[index + block_start] = (float)(t6->Beams[index].Distance) * 0.001;
+    }
+
+    if (publish_laser)
+    {
+        _beam_count = 0;
+    }
+    return publish_laser;
 }
 
 int Rsl400UdpNode::recv(char *msg, size_t max_size)
@@ -232,14 +299,15 @@ int Rsl400UdpNode::recv(char *msg, size_t max_size)
 
 int Rsl400UdpNode::run()
 {
-    ros::Rate clock_rate(_poll_rate);  // Hz
+    ros::Rate clock_rate(_poll_rate); // Hz
     struct addrinfo info;
-    while (_socket == 0) {
+    while (_socket == 0)
+    {
         try
         {
             _socket = open_udp_socket(_address, _port, &info);
         }
-        catch (const std::exception& e)
+        catch (const std::exception &e)
         {
             ROS_ERROR("Failed to connect to device: %s", e.what());
             ros::spinOnce();
@@ -256,7 +324,7 @@ int Rsl400UdpNode::run()
     return 0;
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     ros::init(argc, argv, "rsl400_udp_ros");
     ros::NodeHandle nh;

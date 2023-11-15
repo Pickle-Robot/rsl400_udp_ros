@@ -13,19 +13,12 @@
 #include "rsl400_udp_ros/rsl400/stateimage.h"
 #include "rsl400_udp_ros/rsl400/udpstateimage.h"
 
-diagnostic_msgs::KeyValue make_entry(std::string key, int value) {
-    diagnostic_msgs::KeyValue key_value;
-    key_value.key = key;
-    key_value.value = std::to_string(value);
-    return key_value;
-}
-
-float decidegree_to_radians(int decidegrees) {
-    return (float)(decidegrees) * 0.1 * M_PI / 180.0;
-}
-
-const int MAX_BEAMS_PER_PACKET = 360;
-const int LEUZE_PREFERRED_PAYLOAD_LIMIT = 1460;
+namespace LeuzePacketId
+{
+    const int BEAM_DESCRIPTION = 1;
+    const int BEAM_STRENGTH_ID = 3;
+    const int BEAM_ID = 6;
+} // namespace LeuzePacketId
 
 class Rsl400UdpNode
 {
@@ -36,37 +29,62 @@ public:
 private:
     ros::NodeHandle nh;  // ROS node handle
 
-    const int BUFFER_LEN = 2048000;
+    std::string _address;  // IP address of the data source. The sensor must be configured to send data to this address.
+    int _port;  // Port number of the data source. The sensor must be configured to send data to this port.
+    struct addrinfo *_addrinfo;  // Address information of the data source.
+    int _socket;  // UDP socket file descriptor
 
-    std::string _address;
-    int _port;
-    struct addrinfo *_addrinfo;
-    int _socket;
-    std::string _frame_id;
+    const int BUFFER_LEN = 2048000;  // 2 MB UDP socket receive buffer
+    char *_receive_buffer;  // buffer for received UDP packets
 
-    char *_receive_buffer;
-    
-    std::vector<float> _ranges;
-    std::vector<float> _intensities;
+    /** 
+     * Leuze imposes a limit of 1460 bytes on the payload of its UDP packets.
+     * This is used in expected number of beam calculations.
+     */
+    const int LEUZE_PREFERRED_PAYLOAD_LIMIT = 1460;
 
-    unsigned int _received_bitmask = 0;  // remembers which packets have been received since last beam description
+    sensor_msgs::LaserScan _scan_msg;  // ROS message for publishing scans
 
-    int _scan_count = 0;
-    ros::Time _prev_scan_time;
+    /**
+     * Remembers which packets have been received since last beam description
+     * packet. This is used to determine when a full scan has been received.
+     * Each bit in the mask encodes whether a packet of that block number has been received.
+     */
+    unsigned int _received_bitmask = 0;
 
-    int _beam_count = 0;
-    float _start_angle;
-    float _stop_angle;
-    float _angle_increment;
-    float _time_increment;
+    int _scan_count = 0;  // Number of scans received since the sensor woke up
+    ros::Time _prev_scan_time;  // Time of the previous scan
 
-    double _poll_rate;
+    int _beam_count = 0;  // Number of beams in the scan according to the beam description
+    double _poll_rate;  // Rate at which the UDP socket is polled for data
+    double _socket_timeout;  // Timeout for the UDP socket, seconds
 
+    // ROS publishers
     ros::Publisher _scan_pub;
     ros::Publisher _diagnostics_pub;
 
     int open_udp_socket(const std::string& addr, int port, struct addrinfo *addrinfo);
     int recv(char *msg, size_t max_size);
     void publish_scan();
-    bool get_assignment_range(int block, int expected_length, size_t data_type_size, int beam_count, int &num_beams, int &block_start, int &completion_bitmask);
+    bool get_assignment_range(int *block_start, RSL400::PUdpTelegramType udpTelegramType, size_t data_type_size);
+    bool handle_beam_description(char *receive_buffer, int length);
+    bool handle_beam_data(char *receive_buffer, int length);
+    bool handle_beam_strength_data(char *receive_buffer, int length);
 };
+
+/**
+ * Converts a decidegree to radians.
+ * Leuze reports angles in decidegrees, which are 1/10 of a degree.
+ * @param decidegrees The angle in decidegrees.
+ * @return The angle in radians.
+ */
+float decidegree_to_radians(int decidegrees) {
+    return (float)(decidegrees) * 0.1 * M_PI / 180.0;
+}
+
+diagnostic_msgs::KeyValue make_entry(std::string key, int value) {
+    diagnostic_msgs::KeyValue key_value;
+    key_value.key = key;
+    key_value.value = std::to_string(value);
+    return key_value;
+}
