@@ -46,14 +46,6 @@ int Rsl400UdpNode::open_udp_socket(const std::string& addr, int port, struct add
         freeaddrinfo(addrinfo);
         throw std::runtime_error(("could not create UDP socket for: \"" + addr + ":" + decimal_port + "\"").c_str());
     }
-    const int enable = 1;
-    if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
-        throw std::runtime_error("Failed to set socket option to reuse port");
-
-    }
-    if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
-        throw std::runtime_error("Failed to set socket option to reuse address");
-    }
     error_code = bind(f_socket, addrinfo->ai_addr, addrinfo->ai_addrlen);
     if(error_code != 0)
     {
