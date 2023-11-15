@@ -1,4 +1,4 @@
- /***********************************************************************************************
+/***********************************************************************************************
  * SOFTWARE RSL400
  *
  * This code is distributed in the hope that it will be useful,
@@ -17,7 +17,8 @@
 
 #pragma pack(1)
 
-namespace RSL400 {
+namespace RSL400
+{
     // Header1
     typedef struct tagHeader1
     {
@@ -25,8 +26,7 @@ namespace RSL400 {
         unsigned char Size;
         unsigned char FollowFlag;
         WORD RegID;
-    }
-    Header1, *PHeader1;
+    } Header1, *PHeader1;
 
     // Header2
     typedef struct tagHeader2
@@ -36,8 +36,7 @@ namespace RSL400 {
         unsigned char Source;
         unsigned char TelegramType;
 
-    }
-    Header2, *PHeader2;
+    } Header2, *PHeader2;
 
     // UDP Telegram Type
     typedef struct tagUdpTelegramType
@@ -47,74 +46,67 @@ namespace RSL400 {
         WORD Id;
         WORD BlockNo;
         DWORD ScanNo;
-    }
-    UdpTelegramType, *PUdpTelegramType;
+    } UdpTelegramType, *PUdpTelegramType;
 
     // Beam Description
-    typedef struct tagBeamDescription 
+    typedef struct tagBeamDescription
     {
         WORD Start;
         WORD Stop;
         WORD Resolution;
         WORD Res;
-    }
-    BeamDescription, *PBeamDescription;
+    } BeamDescription, *PBeamDescription;
 
     // UdpStateImageType1
     typedef struct tagUdpStateImageType1 : UdpTelegramType
     {
         StateImageType1 StateImage1;
-    }
-    UdpStateImageType1, *PUdpStateImageType1;
+    } UdpStateImageType1, *PUdpStateImageType1;
 
     // UdpExtStateImageType1
     typedef struct tagUdpExtStateImageType1 : tagUdpStateImageType1
     {
         BeamDescription BeamDesc;
-    }
-    UdpExtStateImageType1, *PUdpExtStateImageType1;
+    } UdpExtStateImageType1, *PUdpExtStateImageType1;
 
     // Single Beam
     typedef struct tagBeam
     {
-        WORD Distance;        // distance
-    }
-    Beam, *PBeam;
+        WORD Distance; // distance
+    } Beam, *PBeam;
 
     // UdpBeamPacket
     typedef struct tagUdpBeamPacket : UdpTelegramType
     {
         Beam Beams[1];
-    }
-    UdpBeamPacket, *PUdpBeamPacket;
+    } UdpBeamPacket, *PUdpBeamPacket;
 
     // Beam + Strength
     typedef struct tagBeamStrength
     {
-        WORD Distance;        // distance
-        WORD Strength;        // strength
-    }
-    BeamStrength, *PBeamStrength;
+        WORD Distance; // distance
+        WORD Strength; // strength
+    } BeamStrength, *PBeamStrength;
 
     // UdpBeamStrengthPacket
     typedef struct tagUdpBeamStrengthPacket : UdpTelegramType
     {
         BeamStrength Beams[1];
-    }
-    UdpBeamStrengthPacket, *PUdpBeamStrengthPacket;
+    } UdpBeamStrengthPacket, *PUdpBeamStrengthPacket;
 
-    /// <summary>
-    /// Gets the beam count.
-    /// </summary>
-    /// <param name="pBeamDesc">The beam description.</param>
-    /// <returns>The beam count according to beam description.</returns>
-    int getBeamCount( PBeamDescription pBeamDesc ) {
-        if ( pBeamDesc->Start == 0 && pBeamDesc->Stop == 0 && pBeamDesc->Resolution == 0 )
+    /**
+     * Gets the beam count.
+     * @param pBeamDesc The beam description.
+     * @return The beam count according to beam description.
+    */
+    int getBeamCount(PBeamDescription pBeamDesc)
+    {
+        if (pBeamDesc->Start == 0 && pBeamDesc->Stop == 0 && pBeamDesc->Resolution == 0)
         {
             return 0;
         }
 
-        return 1 + (int)ceil((pBeamDesc->Stop - pBeamDesc->Start)/(double)pBeamDesc->Resolution);
+        return 1 + (int)ceil((pBeamDesc->Stop - pBeamDesc->Start) / (double)pBeamDesc->Resolution);
     }
 
 }

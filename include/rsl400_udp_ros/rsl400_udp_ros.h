@@ -23,27 +23,28 @@ namespace LeuzePacketId
 class Rsl400UdpNode
 {
 public:
-    Rsl400UdpNode(ros::NodeHandle* nodehandle);
+    Rsl400UdpNode(ros::NodeHandle *nodehandle);
     ~Rsl400UdpNode();
     int run();
+
 private:
-    ros::NodeHandle nh;  // ROS node handle
+    ros::NodeHandle nh; // ROS node handle
 
-    std::string _address;  // IP address of the data source. The sensor must be configured to send data to this address.
-    int _port;  // Port number of the data source. The sensor must be configured to send data to this port.
-    struct addrinfo *_addrinfo;  // Address information of the data source.
-    int _socket;  // UDP socket file descriptor
+    std::string _address;       // IP address of the data source. The sensor must be configured to send data to this address.
+    int _port;                  // Port number of the data source. The sensor must be configured to send data to this port.
+    struct addrinfo *_addrinfo; // Address information of the data source.
+    int _socket;                // UDP socket file descriptor
 
-    const int BUFFER_LEN = 2048000;  // 2 MB UDP socket receive buffer
-    char *_receive_buffer;  // buffer for received UDP packets
+    const int BUFFER_LEN = 2048000; // 2 MB UDP socket receive buffer
+    char *_receive_buffer;          // buffer for received UDP packets
 
-    /** 
+    /**
      * Leuze imposes a limit of 1460 bytes on the payload of its UDP packets.
      * This is used in expected number of beam calculations.
      */
     const int LEUZE_PREFERRED_PAYLOAD_LIMIT = 1460;
 
-    sensor_msgs::LaserScan _scan_msg;  // ROS message for publishing scans
+    sensor_msgs::LaserScan _scan_msg; // ROS message for publishing scans
 
     /**
      * Remembers which packets have been received since last beam description
@@ -52,18 +53,18 @@ private:
      */
     unsigned int _received_bitmask = 0;
 
-    int _scan_count = 0;  // Number of scans received since the sensor woke up
-    ros::Time _prev_scan_time;  // Time of the previous scan
+    int _scan_count = 0;       // Number of scans received since the sensor woke up
+    ros::Time _prev_scan_time; // Time of the previous scan
 
-    int _beam_count = 0;  // Number of beams in the scan according to the beam description
-    double _poll_rate;  // Rate at which the UDP socket is polled for data
-    double _socket_timeout;  // Timeout for the UDP socket, seconds
+    int _beam_count = 0;    // Number of beams in the scan according to the beam description
+    double _poll_rate;      // Rate at which the UDP socket is polled for data
+    double _socket_timeout; // Timeout for the UDP socket, seconds
 
     // ROS publishers
     ros::Publisher _scan_pub;
     ros::Publisher _diagnostics_pub;
 
-    int open_udp_socket(const std::string& addr, int port, struct addrinfo *addrinfo);
+    int open_udp_socket(const std::string &addr, int port, struct addrinfo *addrinfo);
     int recv(char *msg, size_t max_size);
     void publish_scan();
     bool get_assignment_range(int *block_start, RSL400::PUdpTelegramType udpTelegramType, size_t data_type_size);
@@ -78,11 +79,13 @@ private:
  * @param decidegrees The angle in decidegrees.
  * @return The angle in radians.
  */
-float decidegree_to_radians(int decidegrees) {
+float decidegree_to_radians(int decidegrees)
+{
     return (float)(decidegrees) * 0.1 * M_PI / 180.0;
 }
 
-diagnostic_msgs::KeyValue make_entry(std::string key, int value) {
+diagnostic_msgs::KeyValue make_entry(std::string key, int value)
+{
     diagnostic_msgs::KeyValue key_value;
     key_value.key = key;
     key_value.value = std::to_string(value);
