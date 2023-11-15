@@ -24,6 +24,9 @@ float decidegree_to_radians(int decidegrees) {
     return (float)(decidegrees) * 0.1 * M_PI / 180.0;
 }
 
+const int MAX_BEAMS_PER_PACKET = 360;
+const int LEUZE_PREFERRED_PAYLOAD_LIMIT = 1460;
+
 class Rsl400UdpNode
 {
 public:
@@ -46,6 +49,8 @@ private:
     std::vector<float> _ranges;
     std::vector<float> _intensities;
 
+    unsigned int _received_bitmask = 0;  // remembers which packets have been received since last beam description
+
     int _scan_count = 0;
     ros::Time _prev_scan_time;
 
@@ -63,5 +68,5 @@ private:
     int open_udp_socket(const std::string& addr, int port, struct addrinfo *addrinfo);
     int recv(char *msg, size_t max_size);
     void publish_scan();
-    bool get_assignment_range(int block, int expected_length, size_t data_type_size, int &num_beams, int &block_start);
+    bool get_assignment_range(int block, int expected_length, size_t data_type_size, int beam_count, int &num_beams, int &block_start, int &completion_bitmask);
 };

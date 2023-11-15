@@ -46,6 +46,14 @@ int Rsl400UdpNode::open_udp_socket(const std::string& addr, int port, struct add
         freeaddrinfo(addrinfo);
         throw std::runtime_error(("could not create UDP socket for: \"" + addr + ":" + decimal_port + "\"").c_str());
     }
+    const int enable = 1;
+    if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
+        throw std::runtime_error("Failed to set socket option to reuse port");
+
+    }
+    if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+        throw std::runtime_error("Failed to set socket option to reuse address");
+    }
     error_code = bind(f_socket, addrinfo->ai_addr, addrinfo->ai_addrlen);
     if(error_code != 0)
     {
@@ -72,8 +80,8 @@ void Rsl400UdpNode::publish_scan() {
     {
         RSL400::PUdpExtStateImageType1 udpExtStateImageType1 = (RSL400::PUdpExtStateImageType1)_receive_buffer;
 
-        int expected_length = udpExtStateImageType1->H1.TotalSize;
-        if (expected_length != recv_length) {
+        int total_size = udpExtStateImageType1->H1.TotalSize;
+        if (total_size != recv_length) {
             ROS_WARN("Received packet size does not match header size");
             return;
         }
@@ -115,6 +123,7 @@ void Rsl400UdpNode::publish_scan() {
 
         int beam_count = RSL400::getBeamCount(&udpExtStateImageType1->BeamDesc);
         _beam_count = beam_count;
+        _received_bitmask = 0;
         int scan_count = udpExtStateImageType1->StateImage1.ScanNo;
         if (_scan_count == 0) {
             _scan_count = scan_count;
@@ -146,15 +155,11 @@ void Rsl400UdpNode::publish_scan() {
 
         RSL400::PUdpBeamStrengthPacket t3 = (RSL400::PUdpBeamStrengthPacket)_receive_buffer;
 
-        int expected_length = t3->H1.TotalSize;
-        if (expected_length != recv_length) {
-            ROS_WARN("Received packet size does not match header size");
-            return;
-        }
-
+        int total_size = t3->H1.TotalSize;
         int block = (int)t3->BlockNo;
-        int num_beams, block_start;
-        if (!get_assignment_range(block, expected_length, sizeof(RSL400::BeamStrength), num_beams, block_start)) {
+        int num_beams, block_start, completion_bitmask;
+        
+        if (!get_assignment_range(block, total_size, sizeof(RSL400::BeamStrength), _beam_count, num_beams, block_start, completion_bitmask)) {
             return;
         }
 
@@ -162,8 +167,10 @@ void Rsl400UdpNode::publish_scan() {
             _ranges[index + block_start] = (float)(t3->Beams[index].Distance) * 0.001;
             _intensities[index + block_start] = (float)(t3->Beams[index].Strength);
         }
-        publish_laser = true;
-        _beam_count = 0;
+        if (completion_bitmask == _received_bitmask) {
+            publish_laser = true;
+            _beam_count = 0;
+        }
     }
     else if (udpTelegramType->Id == 6)
     {
@@ -174,25 +181,21 @@ void Rsl400UdpNode::publish_scan() {
 
         RSL400::PUdpBeamPacket t6 = (RSL400::PUdpBeamPacket)_receive_buffer;
 
-        int expected_length = t6->H1.TotalSize;
-        if (expected_length != recv_length) {
-            ROS_WARN("Received packet size does not match header size");
-            // TODO support reconstruction of packets using blocks
-            return;
-        }
-
+        int total_size = t6->H1.TotalSize;
         int block = (int)t6->BlockNo;
-        int num_beams, block_start;
-        if (!get_assignment_range(block, expected_length, sizeof(RSL400::Beam), num_beams, block_start)) {
+        int num_beams, block_start, completion_bitmask;
+        if (!get_assignment_range(block, total_size, sizeof(RSL400::Beam), _beam_count, num_beams, block_start, completion_bitmask)) {
             return;
         }
 
         for (int index = 0; index < _beam_count; index++) {
-            _ranges[index] = (float)(t6->Beams[index].Distance) * 0.001;
+            _ranges[index + block_start] = (float)(t6->Beams[index].Distance) * 0.001;
         }
 
-        publish_laser = true;
-        _beam_count = 0;
+        if (completion_bitmask == _received_bitmask) {
+            publish_laser = true;
+            _beam_count = 0;
+        }
     }
 
     if (publish_laser) {
@@ -211,11 +214,17 @@ void Rsl400UdpNode::publish_scan() {
     }
 }
 
-bool Rsl400UdpNode::get_assignment_range(int block, int expected_length, size_t data_type_size, int &num_beams, int &block_start)
+bool Rsl400UdpNode::get_assignment_range(int block, int total_size, size_t data_type_size, int beam_count, int &num_beams, int &block_start, int &completion_bitmask)
 {
-    block_start = block * 1470;
-    num_beams = (expected_length - sizeof(RSL400::UdpTelegramType)) / data_type_size;
-    if (block_start + num_beams > _beam_count) {
+    int max_beams_per_packet = (LEUZE_PREFERRED_PAYLOAD_LIMIT - sizeof(RSL400::UdpTelegramType)) / data_type_size;
+    block_start = block * max_beams_per_packet;
+    num_beams = (total_size - sizeof(RSL400::UdpTelegramType)) / data_type_size;
+    
+    int expected_num_packets = ceil((double)beam_count / max_beams_per_packet);
+    completion_bitmask = (1 << expected_num_packets) - 1;
+    _received_bitmask |= 1 << block;
+    
+    if (expected_num_packets > 1 && block == 0 && num_beams != max_beams_per_packet) {
         ROS_WARN("Received packet size does not match beam count");
         return false;
     }
