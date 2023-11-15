@@ -137,7 +137,7 @@ bool Rsl400UdpNode::get_assignment_range(int *block_start, RSL400::PUdpTelegramT
     int expected_num_packets = ceil((double)_beam_count / max_beams_per_packet);
 
     // If we expect to receive multiple packets, all packets except the last one should be full.
-    if (expected_num_packets > 1 && block < expected_num_packets - 1 && num_beams != max_beams_per_packet)
+    if (block < expected_num_packets - 1 && num_beams != max_beams_per_packet)
     {
         ROS_WARN("Received packet size does not match beam count");
         return false;
