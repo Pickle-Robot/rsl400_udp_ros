@@ -4,7 +4,7 @@ Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle *nodehandle) : nh(*nodehandle)
 {
     ros::param::param<std::string>("~address", _address, "0.0.0.0");
     ros::param::param<int>("~port", _port, 9999);
-    ros::param::param<double>("~poll_rate", _poll_rate, 100.0);
+    ros::param::param<double>("~poll_rate", _poll_rate, 1000.0);
     ros::param::param<double>("~socket_timeout", _socket_timeout, 3.0);
 
     double min_range, max_range;
@@ -107,6 +107,16 @@ void Rsl400UdpNode::publish_scan()
     }
 }
 
+int Rsl400UdpNode::get_num_beams(RSL400::PUdpTelegramType udpTelegramType, size_t data_type_size)
+{
+    int total_size = udpTelegramType->H1.TotalSize;
+
+    // Compute the actual number of beams in this packet
+    int num_beams = (total_size - sizeof(RSL400::UdpTelegramType)) / data_type_size;
+
+    return num_beams;
+}
+
 /**
  * Computes the starting beam index for a packet and whether the scan is fully received.
  *
@@ -115,7 +125,7 @@ void Rsl400UdpNode::publish_scan()
  * @param data_type_size Size of the data type contained in the packet (Beam or BeamStrength).
  * @return True if the scan is fully received, false otherwise.
  */
-bool Rsl400UdpNode::get_assignment_range(int *block_start, RSL400::PUdpTelegramType udpTelegramType, size_t data_type_size)
+bool Rsl400UdpNode::get_assignment_range(int *block_start, RSL400::PUdpTelegramType udpTelegramType, size_t data_type_size, int num_beams)
 {
     // A single scan will be split into multiple packets if it exceeds the LEUZE_PREFERRED_PAYLOAD_LIMIT.
     // Using block number and _beam_count extracted from a previous description packet, we can determine
@@ -123,15 +133,11 @@ bool Rsl400UdpNode::get_assignment_range(int *block_start, RSL400::PUdpTelegramT
 
     // Extract current data packet info
     int block = udpTelegramType->BlockNo;
-    int total_size = udpTelegramType->H1.TotalSize;
 
     // A beam == information from a single ray. Can be distance or distance with strength/intensity.
     // max_beams_per_packet contains how many beams we expect to find in this packet if it's full.
     int max_beams_per_packet = (LEUZE_PREFERRED_PAYLOAD_LIMIT - sizeof(RSL400::UdpTelegramType)) / data_type_size;
     *block_start = block * max_beams_per_packet;
-
-    // Compute the actual number of beams in this packet
-    int num_beams = (total_size - sizeof(RSL400::UdpTelegramType)) / data_type_size;
 
     // Compute the expected number of packets for this scan
     int expected_num_packets = ceil((double)_beam_count / max_beams_per_packet);
@@ -203,8 +209,7 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
 
     _diagnostics_pub.publish(diagnostics);
 
-    int beam_count = RSL400::getBeamCount(&udpExtStateImageType1->BeamDesc);
-    _beam_count = beam_count;
+    _beam_count = RSL400::getBeamCount(&udpExtStateImageType1->BeamDesc);
     _received_bitmask = 0;
     int scan_count = udpExtStateImageType1->StateImage1.ScanNo;
     if (_scan_count == 0)
@@ -222,10 +227,10 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
     _prev_scan_time = now;
 
     _scan_count = scan_count;
-    if (_scan_msg.ranges.size() != beam_count)
+    if (_scan_msg.ranges.size() != _beam_count)
     {
-        _scan_msg.ranges.resize(beam_count);
-        _scan_msg.intensities.resize(beam_count);
+        _scan_msg.ranges.resize(_beam_count);
+        _scan_msg.intensities.resize(_beam_count);
     }
     double angle_start = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Start);
     double angle_stop = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Stop);
@@ -250,9 +255,10 @@ bool Rsl400UdpNode::handle_beam_strength_data(char *receive_buffer, int length)
     RSL400::PUdpTelegramType udpTelegramType = (RSL400::PUdpTelegramType)_receive_buffer;
 
     int block_start;
-    bool publish_laser = get_assignment_range(&block_start, udpTelegramType, sizeof(RSL400::BeamStrength));
+    int num_beams = get_num_beams(udpTelegramType, sizeof(RSL400::BeamStrength));
+    bool publish_laser = get_assignment_range(&block_start, udpTelegramType, sizeof(RSL400::BeamStrength), num_beams);
 
-    for (int index = 0; index < _beam_count; index++)
+    for (int index = 0; index < num_beams; index++)
     {
         int block_index = index + block_start;
         _scan_msg.ranges[block_index] = (float)(t3->Beams[index].Distance) * 0.001;
@@ -278,9 +284,10 @@ bool Rsl400UdpNode::handle_beam_data(char *receive_buffer, int length)
     RSL400::PUdpTelegramType udpTelegramType = (RSL400::PUdpTelegramType)_receive_buffer;
 
     int block_start;
-    bool publish_laser = get_assignment_range(&block_start, udpTelegramType, sizeof(RSL400::Beam));
+    int num_beams = get_num_beams(udpTelegramType, sizeof(RSL400::Beam));
+    bool publish_laser = get_assignment_range(&block_start, udpTelegramType, sizeof(RSL400::Beam), num_beams);
 
-    for (int index = 0; index < _beam_count; index++)
+    for (int index = 0; index < num_beams; index++)
     {
         _scan_msg.ranges[index + block_start] = (float)(t6->Beams[index].Distance) * 0.001;
     }

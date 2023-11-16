@@ -67,7 +67,8 @@ private:
     int open_udp_socket(const std::string &addr, int port, struct addrinfo *addrinfo);
     int recv(char *msg, size_t max_size);
     void publish_scan();
-    bool get_assignment_range(int *block_start, RSL400::PUdpTelegramType udpTelegramType, size_t data_type_size);
+    bool get_assignment_range(int *block_start, RSL400::PUdpTelegramType udpTelegramType, size_t data_type_size, int num_beams);
+    int get_num_beams(RSL400::PUdpTelegramType udpTelegramType, size_t data_type_size);
     bool handle_beam_description(char *receive_buffer, int length);
     bool handle_beam_data(char *receive_buffer, int length);
     bool handle_beam_strength_data(char *receive_buffer, int length);
