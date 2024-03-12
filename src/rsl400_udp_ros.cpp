@@ -46,20 +46,23 @@ int Rsl400UdpNode::open_udp_socket(const std::string &addr, int port, struct add
     int error_code(getaddrinfo(addr.c_str(), decimal_port, &hints, &addrinfo));
     if (error_code != 0 || addrinfo == NULL)
     {
-        throw std::runtime_error(("invalid address or port for UDP socket: \"" + addr + ":" + decimal_port + "\"").c_str());
+        ROS_ERROR("Invalid address or port for UDP socket: \"%s:%s\"", addr, decimal_port);
+        throw std::runtime_error("Invalid address or port for UDP socket");
     }
     int f_socket = socket(addrinfo->ai_family, SOCK_DGRAM | SOCK_CLOEXEC, IPPROTO_UDP);
     if (f_socket == -1)
     {
         freeaddrinfo(addrinfo);
-        throw std::runtime_error(("could not create UDP socket for: \"" + addr + ":" + decimal_port + "\"").c_str());
+        ROS_ERROR("Could not create UDP socket with: \"%s:%s\"", addr, decimal_port);
+        throw std::runtime_error("Could not create UDP socket");
     }
     error_code = bind(f_socket, addrinfo->ai_addr, addrinfo->ai_addrlen);
     if (error_code != 0)
     {
         freeaddrinfo(addrinfo);
         close(f_socket);
-        throw std::runtime_error(("Error code: " + error_code + ". Could not bind UDP socket with: \"" + addr + ":" + decimal_port + "\"").c_str());
+        ROS_ERROR("Error code: %d. Could not bind UDP socket with: \"%s:%s\"", error_code, addr, decimal_port);
+        throw std::runtime_error("Could not bind UDP socket");
     }
 
     struct timeval timeout;
