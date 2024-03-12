@@ -59,7 +59,7 @@ int Rsl400UdpNode::open_udp_socket(const std::string &addr, int port, struct add
     {
         freeaddrinfo(addrinfo);
         close(f_socket);
-        throw std::runtime_error(("could not bind UDP socket with: \"" + addr + ":" + decimal_port + "\"").c_str());
+        throw std::runtime_error(("Error code: " + error_code + ". Could not bind UDP socket with: \"" + addr + ":" + decimal_port + "\"").c_str());
     }
 
     struct timeval timeout;
