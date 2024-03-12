@@ -106,8 +106,8 @@ void Rsl400UdpNode::publish_scan()
 
     if (publish_laser)
     {
-        std::receive(_scan_msg.ranges.begin(), _scan_msg.ranges.end());
-        std::receive(_scan_msg.intensities.begin(), _scan_msg.intensities.end());
+        std::reverse(_scan_msg.ranges.begin(), _scan_msg.ranges.end());
+        std::reverse(_scan_msg.intensities.begin(), _scan_msg.intensities.end());
         _scan_pub.publish(_scan_msg);
     }
 }
