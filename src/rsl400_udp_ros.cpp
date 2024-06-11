@@ -56,6 +56,11 @@ int Rsl400UdpNode::open_udp_socket(const std::string &addr, int port, struct add
         ROS_ERROR("Could not create UDP socket with: \"%s:%s\"", addr.c_str(), decimal_port);
         throw std::runtime_error("Could not create UDP socket");
     }
+    int reuse_flag = 1;
+    if (setsockopt(f_socket, SOL_SOCKET, SO_REUSEADDR, &reuse_flag, sizeof(reuse_flag)) < 0)
+    {
+        throw std::runtime_error("failed to set reuseaddr");
+    }
     error_code = bind(f_socket, addrinfo->ai_addr, addrinfo->ai_addrlen);
     if (error_code != 0)
     {
