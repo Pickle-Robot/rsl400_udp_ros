@@ -258,6 +258,48 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
 
     diagnostics.values.push_back(make_entry("StatusProfile/b5_Res1", udpExtStateImageType1->StateImage1.b5_Res1));
 
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/b0_Res1", udpExtStateImageType1->StateImage1.ProtFuncA.b0_Res1));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsFFOutActive", udpExtStateImageType1->StateImage1.ProtFuncA.IsFFOutActive));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsRestartActive", udpExtStateImageType1->StateImage1.ProtFuncA.IsRestartActive));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsPfFree", udpExtStateImageType1->StateImage1.ProtFuncA.IsPfFree));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsWfFree", udpExtStateImageType1->StateImage1.ProtFuncA.IsWfFree));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsActive", udpExtStateImageType1->StateImage1.ProtFuncA.IsActive));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/SelFieldPair1", udpExtStateImageType1->StateImage1.ProtFuncA.SelFieldPair1));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/SelBank", udpExtStateImageType1->StateImage1.ProtFuncA.SelBank));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/SelFieldPair3", udpExtStateImageType1->StateImage1.ProtFuncA.SelFieldPair3));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/SelFieldPair2", udpExtStateImageType1->StateImage1.ProtFuncA.SelFieldPair2));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/b3_Res1", udpExtStateImageType1->StateImage1.ProtFuncA.b3_Res1));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsFpSel2", udpExtStateImageType1->StateImage1.ProtFuncA.IsFpSel2));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsFpSel1", udpExtStateImageType1->StateImage1.ProtFuncA.IsFpSel1));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsPfSeg2Free", udpExtStateImageType1->StateImage1.ProtFuncA.IsPfSeg2Free));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsPfSeg1Free", udpExtStateImageType1->StateImage1.ProtFuncA.IsPfSeg1Free));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsWfSeg2Free", udpExtStateImageType1->StateImage1.ProtFuncA.IsWfSeg2Free));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncA/IsWfSeg1Free", udpExtStateImageType1->StateImage1.ProtFuncA.IsWfSeg1Free));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/b0_Res1", udpExtStateImageType1->StateImage1.ProtFuncB.b0_Res1));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsFFOutActive", udpExtStateImageType1->StateImage1.ProtFuncB.IsFFOutActive));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsRestartActive", udpExtStateImageType1->StateImage1.ProtFuncB.IsRestartActive));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsPfFree", udpExtStateImageType1->StateImage1.ProtFuncB.IsPfFree));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsWfFree", udpExtStateImageType1->StateImage1.ProtFuncB.IsWfFree));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsActive", udpExtStateImageType1->StateImage1.ProtFuncB.IsActive));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/SelFieldPair1", udpExtStateImageType1->StateImage1.ProtFuncB.SelFieldPair1));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/SelBank", udpExtStateImageType1->StateImage1.ProtFuncB.SelBank));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/SelFieldPair3", udpExtStateImageType1->StateImage1.ProtFuncB.SelFieldPair3));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/SelFieldPair2", udpExtStateImageType1->StateImage1.ProtFuncB.SelFieldPair2));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/b3_Res1", udpExtStateImageType1->StateImage1.ProtFuncB.b3_Res1));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsFpSel2", udpExtStateImageType1->StateImage1.ProtFuncB.IsFpSel2));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsFpSel1", udpExtStateImageType1->StateImage1.ProtFuncB.IsFpSel1));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsPfSeg2Free", udpExtStateImageType1->StateImage1.ProtFuncB.IsPfSeg2Free));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsPfSeg1Free", udpExtStateImageType1->StateImage1.ProtFuncB.IsPfSeg1Free));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsWfSeg2Free", udpExtStateImageType1->StateImage1.ProtFuncB.IsWfSeg2Free));
+    diagnostics.values.push_back(make_entry("StatusProfile/ProtFuncB/IsWfSeg1Free", udpExtStateImageType1->StateImage1.ProtFuncB.IsWfSeg1Free));
+
     diagnostics.values.push_back(make_entry("BeamDesc/Start", udpExtStateImageType1->BeamDesc.Start));
     diagnostics.values.push_back(make_entry("BeamDesc/Stop", udpExtStateImageType1->BeamDesc.Stop));
     diagnostics.values.push_back(make_entry("BeamDesc/Resolution", udpExtStateImageType1->BeamDesc.Resolution));
