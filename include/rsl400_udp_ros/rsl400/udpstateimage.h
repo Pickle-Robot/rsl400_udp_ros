@@ -57,6 +57,14 @@ namespace RSL400
         WORD Res;
     } BeamDescription, *PBeamDescription;
 
+    // Signature
+    typedef struct tagSignatureData
+    {
+        WORD SignatureId;
+        WORD Length;
+        char Description[8];
+    } Signature, *PSignature;
+
     // UdpStateImageType1
     typedef struct tagUdpStateImageType1 : UdpTelegramType
     {
@@ -64,10 +72,15 @@ namespace RSL400
     } UdpStateImageType1, *PUdpStateImageType1;
 
     // UdpExtStateImageType1
-    typedef struct tagUdpExtStateImageType1 : tagUdpStateImageType1
+    typedef struct tagUdpExtStateImageType1 : tagUdpStateImageType1  // Documentation Table 3.4 Measurement contour description
     {
         BeamDescription BeamDesc;
     } UdpExtStateImageType1, *PUdpExtStateImageType1;
+
+    typedef struct tagSignaturePacket : tagUdpExtStateImageType1  // Documentation Table 3.5 Signature
+    {
+        Signature Sig;
+    } SignaturePacket, *PSignaturePacket;
 
     // Single Beam
     typedef struct tagBeam

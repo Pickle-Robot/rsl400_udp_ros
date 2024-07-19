@@ -92,3 +92,11 @@ diagnostic_msgs::KeyValue make_entry(std::string key, int value)
     key_value.value = std::to_string(value);
     return key_value;
 }
+
+diagnostic_msgs::KeyValue make_buf_entry(std::string key, char *buf, int len)
+{
+    diagnostic_msgs::KeyValue key_value;
+    key_value.key = key;
+    key_value.value = std::string(buf, len);
+    return key_value;
+}

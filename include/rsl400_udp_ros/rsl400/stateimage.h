@@ -50,7 +50,7 @@ namespace RSL400
     } StateImageType, *PStateImageType;
 
     // State Image (Type 1)
-    typedef struct tagStateImageType1 : StateImageType
+    typedef struct tagStateImageType1 : StateImageType  // Documentation Table 3.3 Status Profile
     {
         unsigned char OperationMode; // OP-MODE
 

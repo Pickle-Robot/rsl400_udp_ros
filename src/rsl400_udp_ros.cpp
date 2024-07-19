@@ -217,6 +217,14 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
     diagnostics.values.push_back(make_entry("BeamDesc/Stop", udpExtStateImageType1->BeamDesc.Stop));
     diagnostics.values.push_back(make_entry("BeamDesc/Resolution", udpExtStateImageType1->BeamDesc.Resolution));
 
+    if (length >= sizeof(RSL400::SignaturePacket))
+    {
+        RSL400::PSignaturePacket signaturePacket = (RSL400::PSignaturePacket)receive_buffer;
+        diagnostics.values.push_back(make_entry("SignaturePacket/SignatureId", signaturePacket->Sig.SignatureId));
+        diagnostics.values.push_back(make_entry("SignaturePacket/Length", signaturePacket->Sig.Length));
+        diagnostics.values.push_back(make_buf_entry("SignaturePacket/Description", signaturePacket->Sig.Description, sizeof(signaturePacket->Sig.Description)));
+    }
+
     _diagnostics_pub.publish(diagnostics);
 
     _beam_count = RSL400::getBeamCount(&udpExtStateImageType1->BeamDesc);
