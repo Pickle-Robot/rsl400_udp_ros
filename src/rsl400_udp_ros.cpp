@@ -201,21 +201,67 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
     }
     diagnostics.name = "rsl400";
     diagnostics.message = "";
-    diagnostics.hardware_id = "";
+    diagnostics.hardware_id = _scan_msg.header.frame_id;
+    bool has_error = (
+        udpExtStateImageType1->StateImage1.IsEStopError ||
+        udpExtStateImageType1->StateImage1.IsFieldPairError ||
+        udpExtStateImageType1->StateImage1.IsEdm ||
+        udpExtStateImageType1->StateImage1.IsScreen ||
+        udpExtStateImageType1->StateImage1.IsAlarm ||
+        udpExtStateImageType1->StateImage1.IsError
+    );
+    diagnostics.level = has_error ? diagnostic_msgs::DiagnosticStatus::ERROR : diagnostic_msgs::DiagnosticStatus::OK;
 
-    diagnostics.values.push_back(make_entry("StateImage1/ScanNo", udpExtStateImageType1->StateImage1.ScanNo));
-    diagnostics.values.push_back(make_entry("StateImage1/IsOssdB", udpExtStateImageType1->StateImage1.IsOssdB));
-    diagnostics.values.push_back(make_entry("StateImage1/IsOssdA", udpExtStateImageType1->StateImage1.IsOssdA));
-    diagnostics.values.push_back(make_entry("StateImage1/IsEStopError", udpExtStateImageType1->StateImage1.IsEStopError));
-    diagnostics.values.push_back(make_entry("StateImage1/IsFieldPairError", udpExtStateImageType1->StateImage1.IsFieldPairError));
-    diagnostics.values.push_back(make_entry("StateImage1/IsEdm", udpExtStateImageType1->StateImage1.IsEdm));
-    diagnostics.values.push_back(make_entry("StateImage1/IsScreen", udpExtStateImageType1->StateImage1.IsScreen));
-    diagnostics.values.push_back(make_entry("StateImage1/IsAlarm", udpExtStateImageType1->StateImage1.IsAlarm));
-    diagnostics.values.push_back(make_entry("StateImage1/IsError", udpExtStateImageType1->StateImage1.IsError));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsOssdB", udpExtStateImageType1->StateImage1.IsOssdB));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsOssdA", udpExtStateImageType1->StateImage1.IsOssdA));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsEStopError", udpExtStateImageType1->StateImage1.IsEStopError));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsFieldPairError", udpExtStateImageType1->StateImage1.IsFieldPairError));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsEdm", udpExtStateImageType1->StateImage1.IsEdm));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsScreen", udpExtStateImageType1->StateImage1.IsScreen));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsAlarm", udpExtStateImageType1->StateImage1.IsAlarm));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsError", udpExtStateImageType1->StateImage1.IsError));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/b1_Res1", udpExtStateImageType1->StateImage1.b1_Res1));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsRflSeg4", udpExtStateImageType1->StateImage1.IsRflSeg4));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsRflSeg3", udpExtStateImageType1->StateImage1.IsRflSeg3));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsRflSeg2", udpExtStateImageType1->StateImage1.IsRflSeg2));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsRflSeg1", udpExtStateImageType1->StateImage1.IsRflSeg1));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsModePark", udpExtStateImageType1->StateImage1.IsModePark));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsStatusInputSeOn", udpExtStateImageType1->StateImage1.IsStatusInputSeOn));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF8", udpExtStateImageType1->StateImage1.IsF8));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF7", udpExtStateImageType1->StateImage1.IsF7));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF6", udpExtStateImageType1->StateImage1.IsF6));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF5", udpExtStateImageType1->StateImage1.IsF5));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF4", udpExtStateImageType1->StateImage1.IsF4));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF3", udpExtStateImageType1->StateImage1.IsF3));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF2", udpExtStateImageType1->StateImage1.IsF2));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF1", udpExtStateImageType1->StateImage1.IsF1));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/IsEA4", udpExtStateImageType1->StateImage1.IsEA4));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsEA3", udpExtStateImageType1->StateImage1.IsEA3));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsEA2", udpExtStateImageType1->StateImage1.IsEA2));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsEA1", udpExtStateImageType1->StateImage1.IsEA1));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsRes2", udpExtStateImageType1->StateImage1.IsRes2));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsRes1", udpExtStateImageType1->StateImage1.IsRes1));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF10", udpExtStateImageType1->StateImage1.IsF10));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsF9", udpExtStateImageType1->StateImage1.IsF9));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/IsMELD", udpExtStateImageType1->StateImage1.IsMELD));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsA4", udpExtStateImageType1->StateImage1.IsA4));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsA3", udpExtStateImageType1->StateImage1.IsA3));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsA2", udpExtStateImageType1->StateImage1.IsA2));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsA1", udpExtStateImageType1->StateImage1.IsA1));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsNpnPnP", udpExtStateImageType1->StateImage1.IsNpnPnP));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsSE2", udpExtStateImageType1->StateImage1.IsSE2));
+    diagnostics.values.push_back(make_entry("StatusProfile/IsSE1", udpExtStateImageType1->StateImage1.IsSE1));
+
+    diagnostics.values.push_back(make_entry("StatusProfile/b5_Res1", udpExtStateImageType1->StateImage1.b5_Res1));
 
     diagnostics.values.push_back(make_entry("BeamDesc/Start", udpExtStateImageType1->BeamDesc.Start));
     diagnostics.values.push_back(make_entry("BeamDesc/Stop", udpExtStateImageType1->BeamDesc.Stop));
     diagnostics.values.push_back(make_entry("BeamDesc/Resolution", udpExtStateImageType1->BeamDesc.Resolution));
+    diagnostics.values.push_back(make_entry("BeamDesc/Res", udpExtStateImageType1->BeamDesc.Res));
 
     if (length >= sizeof(RSL400::SignaturePacket))
     {
