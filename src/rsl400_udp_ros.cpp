@@ -220,9 +220,9 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
     if (length >= sizeof(RSL400::SignaturePacket))
     {
         RSL400::PSignaturePacket signaturePacket = (RSL400::PSignaturePacket)receive_buffer;
-        diagnostics.values.push_back(make_entry("SignaturePacket/SignatureId", signaturePacket->Sig.SignatureId));
-        diagnostics.values.push_back(make_entry("SignaturePacket/Length", signaturePacket->Sig.Length));
-        diagnostics.values.push_back(make_buf_entry("SignaturePacket/Description", signaturePacket->Sig.Description, sizeof(signaturePacket->Sig.Description)));
+        diagnostics.values.push_back(make_entry("Signature/SignatureId", signaturePacket->Sig.SignatureId));
+        diagnostics.values.push_back(make_entry("Signature/Length", signaturePacket->Sig.Length));
+        diagnostics.values.push_back(make_buf_entry("Signature/Description", signaturePacket->Sig.Description, sizeof(signaturePacket->Sig.Description)));
     }
 
     _diagnostics_pub.publish(diagnostics);
