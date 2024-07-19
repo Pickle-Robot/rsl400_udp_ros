@@ -7,6 +7,7 @@
 #include "ros/ros.h"
 
 #include <sensor_msgs/LaserScan.h>
+#include <diagnostic_msgs/DiagnosticArray.h>
 #include <diagnostic_msgs/DiagnosticStatus.h>
 #include <diagnostic_msgs/KeyValue.h>
 

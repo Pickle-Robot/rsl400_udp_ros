@@ -24,7 +24,7 @@ Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle *nodehandle) : nh(*nodehandle)
     _scan_msg.range_max = max_range;
 
     _scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 50);
-    _diagnostics_pub = nh.advertise<diagnostic_msgs::DiagnosticStatus>("diagnostics", 50);
+    _diagnostics_pub = nh.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 50);
 }
 
 Rsl400UdpNode::~Rsl400UdpNode()
@@ -301,8 +301,8 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
         diagnostics.values.push_back(make_entry("Signature/Length", signaturePacket->Sig.Length));
         diagnostics.values.push_back(make_buf_entry("Signature/Description", signaturePacket->Sig.Description, sizeof(signaturePacket->Sig.Description)));
     }
-
-    _diagnostics_pub.publish(diagnostics);
+    DiagnosticArray diagnostics_array;
+    diagnostics_array.status.push_back(diagnostics);
 
     _beam_count = RSL400::getBeamCount(&udpExtStateImageType1->BeamDesc);
     _received_bitmask = 0;
@@ -334,6 +334,9 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
     _scan_msg.angle_max = angle_delta / 2.0;
     _scan_msg.angle_increment = decidegree_to_radians(udpExtStateImageType1->BeamDesc.Resolution);
     _scan_msg.header.stamp = now;
+
+    diagnostics_array.header = _scan_msg.header;
+    _diagnostics_pub.publish(diagnostics_array);
 
     return false;
 }
