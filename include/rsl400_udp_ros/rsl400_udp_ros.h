@@ -32,6 +32,8 @@ private:
     ros::NodeHandle nh; // ROS node handle
 
     std::string _address;       // IP address of the data source. The sensor must be configured to send data to this address.
+    std::string _diagnostics_name;  // Name of the diagnostics node
+    std::string _diagnostics_id;    // Hardware ID of the diagnostics node. Defaults frame_id.
     int _port;                  // Port number of the data source. The sensor must be configured to send data to this port.
     struct addrinfo *_addrinfo; // Address information of the data source.
     int _socket;                // UDP socket file descriptor

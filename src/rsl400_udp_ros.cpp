@@ -6,6 +6,8 @@ Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle *nodehandle) : nh(*nodehandle)
     ros::param::param<int>("~port", _port, 9999);
     ros::param::param<double>("~poll_rate", _poll_rate, 1000.0);
     ros::param::param<double>("~socket_timeout", _socket_timeout, 3.0);
+    ros::param::param<double>("~diagnostics_name", _diagnostics_name, "rsl400");
+    ros::param::param<double>("~diagnostics_id", _diagnostics_id, "");
 
     double min_range, max_range;
     ros::param::param<double>("~min_range", min_range, 0.0);
@@ -13,6 +15,11 @@ Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle *nodehandle) : nh(*nodehandle)
 
     std::string frame_id;
     ros::param::param<std::string>("~frame_id", frame_id, "laser");
+
+    if (_diagnostics_id.empty())
+    {
+        _diagnostics_id = frame_id;
+    }
 
     _receive_buffer = new char[BUFFER_LEN];
     _prev_scan_time = ros::Time::now();
@@ -24,7 +31,7 @@ Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle *nodehandle) : nh(*nodehandle)
     _scan_msg.range_max = max_range;
 
     _scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 50);
-    _diagnostics_pub = nh.advertise<diagnostic_msgs::DiagnosticArray>("/diagnostics", 50);
+    _diagnostics_pub = nh.advertise<diagnostic_msgs::DiagnosticArray>("diagnostics", 50);
 }
 
 Rsl400UdpNode::~Rsl400UdpNode()
@@ -197,9 +204,9 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
     {
         diagnostics.level = diagnostic_msgs::DiagnosticStatus::OK;
     }
-    diagnostics.name = "rsl400";
+    diagnostics.name = _diagnostics_name;
     diagnostics.message = "";
-    diagnostics.hardware_id = _scan_msg.header.frame_id;
+    diagnostics.hardware_id = _diagnostics_id;
 
     diagnostics.values.push_back(make_entry("StatusProfile/IsOssdB", udpExtStateImageType1->StateImage1.IsOssdB));
     diagnostics.values.push_back(make_entry("StatusProfile/IsOssdA", udpExtStateImageType1->StateImage1.IsOssdA));
