@@ -24,7 +24,7 @@ Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle *nodehandle) : nh(*nodehandle)
     _scan_msg.range_max = max_range;
 
     _scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 50);
-    _diagnostics_pub = nh.advertise<diagnostic_msgs::DiagnosticStatus>("rsl400_diagnostics", 50);
+    _diagnostics_pub = nh.advertise<diagnostic_msgs::DiagnosticStatus>("diagnostics", 50);
 }
 
 Rsl400UdpNode::~Rsl400UdpNode()
