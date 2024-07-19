@@ -184,9 +184,7 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
 
     diagnostic_msgs::DiagnosticStatus diagnostics;
 
-    if (udpExtStateImageType1->StateImage1.IsOssdB ||
-        udpExtStateImageType1->StateImage1.IsOssdA ||
-        udpExtStateImageType1->StateImage1.IsEStopError ||
+    if (udpExtStateImageType1->StateImage1.IsEStopError ||
         udpExtStateImageType1->StateImage1.IsFieldPairError ||
         udpExtStateImageType1->StateImage1.IsEdm ||
         udpExtStateImageType1->StateImage1.IsScreen ||
@@ -202,15 +200,6 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
     diagnostics.name = "rsl400";
     diagnostics.message = "";
     diagnostics.hardware_id = _scan_msg.header.frame_id;
-    bool has_error = (
-        udpExtStateImageType1->StateImage1.IsEStopError ||
-        udpExtStateImageType1->StateImage1.IsFieldPairError ||
-        udpExtStateImageType1->StateImage1.IsEdm ||
-        udpExtStateImageType1->StateImage1.IsScreen ||
-        udpExtStateImageType1->StateImage1.IsAlarm ||
-        udpExtStateImageType1->StateImage1.IsError
-    );
-    diagnostics.level = has_error ? diagnostic_msgs::DiagnosticStatus::ERROR : diagnostic_msgs::DiagnosticStatus::OK;
 
     diagnostics.values.push_back(make_entry("StatusProfile/IsOssdB", udpExtStateImageType1->StateImage1.IsOssdB));
     diagnostics.values.push_back(make_entry("StatusProfile/IsOssdA", udpExtStateImageType1->StateImage1.IsOssdA));
