@@ -6,8 +6,8 @@ Rsl400UdpNode::Rsl400UdpNode(ros::NodeHandle *nodehandle) : nh(*nodehandle)
     ros::param::param<int>("~port", _port, 9999);
     ros::param::param<double>("~poll_rate", _poll_rate, 1000.0);
     ros::param::param<double>("~socket_timeout", _socket_timeout, 3.0);
-    ros::param::param<double>("~diagnostics_name", _diagnostics_name, "rsl400");
-    ros::param::param<double>("~diagnostics_id", _diagnostics_id, "");
+    ros::param::param<std::string>("~diagnostics_name", _diagnostics_name, "rsl400");
+    ros::param::param<std::string>("~diagnostics_id", _diagnostics_id, "");
 
     double min_range, max_range;
     ros::param::param<double>("~min_range", min_range, 0.0);
@@ -308,7 +308,7 @@ bool Rsl400UdpNode::handle_beam_description(char *receive_buffer, int length)
         diagnostics.values.push_back(make_entry("Signature/Length", signaturePacket->Sig.Length));
         diagnostics.values.push_back(make_buf_entry("Signature/Description", signaturePacket->Sig.Description, sizeof(signaturePacket->Sig.Description)));
     }
-    DiagnosticArray diagnostics_array;
+    diagnostic_msgs::DiagnosticArray diagnostics_array;
     diagnostics_array.status.push_back(diagnostics);
 
     _beam_count = RSL400::getBeamCount(&udpExtStateImageType1->BeamDesc);
